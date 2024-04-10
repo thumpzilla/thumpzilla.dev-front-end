@@ -1,0 +1,66 @@
+#  
+#  Define the required bucket variables (_DEV_BUCKET_NAME, _PROD_BUCKET_NAME) in GCP Cloud Build trigger configuration.
+# 
+
+steps:
+  # Step - print the current branch name
+  - id: 'branch_name'
+    name: 'alpine'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+          echo "***************************"
+          echo "Branch Name: $BRANCH_NAME"
+          echo "***************************"
+
+  # Step - dynamically update cloud function http trigger in main.js
+  - id: 'gcloud'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+          CLOUD_FUNCTION_REGION="$(gcloud functions list --filter="$BRANCH_NAME-counter" --format='value(REGION)')"
+          CLOUD_FUNCTION_NAME="$(gcloud functions list --filter="$BRANCH_NAME-counter" --format='value(NAME)')"
+          CLOUD_FUNCTION_URL="$(gcloud functions describe --format='value(url)' "$$CLOUD_FUNCTION_NAME" --region="$$CLOUD_FUNCTION_REGION")"
+          if [ -z "$$CLOUD_FUNCTION_URL" ]; then
+          echo "***********FAIL************"
+          echo "Function URL not found."
+          echo "***************************"
+          exit 1
+          else
+            if [ "$BRANCH_NAME" = "dev" ]; then
+              sed -i "s|fetch('CLOUD_FUNCTION_URL')|fetch('$${CLOUD_FUNCTION_URL}')|g" ./$BRANCH_NAME/main.js
+            elif [ "$BRANCH_NAME" = "prod" ]; then
+              sed -i "s|fetch('CLOUD_FUNCTION_URL')|fetch('$${CLOUD_FUNCTION_URL}')|g" ./$BRANCH_NAME/main.js
+            else
+              echo "***************************** SKIPPING APPLYING *******************************"
+              echo "Branch '$BRANCH_NAME' does not represent an official environment."
+              echo "*******************************************************************************"
+              exit 1
+            fi
+          fi
+
+  # Step - copy files to the appropriate GCS bucket based on the branch name
+  - id: 'gsutil_cp'
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+          if [ "$BRANCH_NAME" = "dev" ]; then
+            gsutil -m cp -r ./$BRANCH_NAME/* gs://${_DEV_BUCKET_NAME}/
+            echo "*******************************************************************************"
+            echo "Deployed Branch: '$BRANCH_NAME' front-end"
+            echo "*******************************************************************************"
+          elif [ "$BRANCH_NAME" = "prod" ]; then
+            gsutil -m cp -r ./$BRANCH_NAME/* gs://${_PROD_BUCKET_NAME}/
+            echo "*******************************************************************************"
+            echo "Deployed Branch: '$BRANCH_NAME' front-end"
+            echo "*******************************************************************************"
+          else
+            echo "***************************** SKIPPING APPLYING *******************************"
+            echo "Branch '$BRANCH_NAME' does not represent an official environment."
+            echo "*******************************************************************************"
+          fi
