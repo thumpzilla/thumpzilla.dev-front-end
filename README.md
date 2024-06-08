@@ -14,10 +14,14 @@ Inspired by the [Cloud Resume Challenge](https://cloudresumechallenge.dev/docs/t
 
 ## Description
 
-The front-end leverages GitHub for version control and incorporates HTML, CSS, and a JavaScript file to dynamically fetch and display the visitor count, while the back-end handles a storage bucket, a Python cloud function, and a NoSQL database.
+The front-end leverages GitHub for version control and incorporates HTML, CSS, and a JavaScript file to dynamically fetch and display the visitor count. The back-end handles a storage bucket, a Python cloud function, and a NoSQL database. CI/CD pipelines are set up to automate deployments, maintaining consistent environments for development and production.
 
 
 ## Technologies Used
+
+- **CI/CD Staging Environments**
+  - This project contains both development and production versions for testing and deployment.
+  - The development environment is available at: https://dev.thumpzilla.dev
 
 - **DNS**
   - DNS manages the project's domain, using a [CNAME bucket strategy](https://cloud.google.com/storage/docs/hosting-static-website-http) for static website hosting.
